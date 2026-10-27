@@ -14,6 +14,62 @@
   <a title="This tool is Tool of The Week on Terminal Trove, The $HOME of all things in the terminal" href="https://terminaltrove.com/"><img src="https://cdn.terminaltrove.com/media/badges/tool_of_the_week/png/terminal_trove_tool_of_the_week_green_on_dark_grey_bg.png" alt="Terminal Trove Tool of The Week" style="width: 250px;" /></a>
 </div>
 
+> [!NOTE]
+> **This is a personal fork of [Gaurav-Gosain/tuios](https://github.com/Gaurav-Gosain/tuios).** It is the upstream code plus the changes listed below, on the `bg-editor` branch. `main` follows upstream unchanged. Everything after this section is the upstream README.
+
+## What this fork changes
+
+### Open files from the rail with no pane in between
+
+Upstream, `o` (file_edit) on a file in the rail always opens a new pane and runs the File editor in it. That works for an editor that runs in a terminal. It does not work when the "editor" is a script that hands the file to something already running, like a Neovim in another pane: the pane flashes up and then closes, and the rail waits for it.
+
+This fork adds a background mode. Start the File editor setting with `&` and tuios runs the command on its own, with no pane:
+
+```toml
+[appearance.sidebar]
+editor = "&tuios-nvim-open"
+```
+
+The command is looked up on `$PATH`. A path has to be absolute, because `~` is not expanded.
+
+Here `o` sends `README.md` and `src/greet.go` to the Neovim that's already open, and each file opens as a new tab. No new pane appears:
+
+<img alt="The tuios file rail: o on README.md and then on src/greet.go opens each one as a new tab in the Neovim pane, with no extra pane" src="./assets/fork-rail-open.gif">
+
+The command gets the file path as its last argument and runs in the file's directory. Its environment tells it where it was asked from:
+
+| Variable | Value |
+| --- | --- |
+| `TUIOS_ENV` | `1` |
+| `TUIOS_SESSION` | the session the rail belongs to |
+| `TUIOS_PANE_ID` | empty, because there is no pane |
+| `TUIOS_FILE_EDIT_BACKGROUND` | `1` |
+
+The command has to show the file itself, for example with `nvim --server <socket> --remote-expr ...`, or with `tuios new-window` when nothing is running yet. Without `&`, the File editor works as it does upstream.
+
+The change is in [`internal/app/sidebar_file_ops.go`](internal/app/sidebar_file_ops.go).
+
+### Build and install this fork
+
+```bash
+git clone https://github.com/Rakura-cloud/tuios.git
+cd tuios
+go build -trimpath -ldflags "-s -w -X main.version=0.10.1+bgedit" -o tuios ./cmd/tuios
+sudo install -m755 tuios /usr/local/bin/tuios
+```
+
+`/usr/local/bin` comes before `/usr/bin` on most systems, so this build runs instead of a packaged tuios. Restart the daemon (`tuios kill-server`) so every part of tuios uses the new build.
+
+### Keeping up with upstream
+
+```bash
+git remote add upstream https://github.com/Gaurav-Gosain/tuios.git
+git fetch upstream
+git rebase upstream/main bg-editor
+```
+
+---
+
 <picture>
   <source srcset="./assets/demo.avif" type="image/avif">
   <img alt="TUIOS" src="./assets/demo.gif">
